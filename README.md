@@ -1,4 +1,4 @@
-# VulnVibes - Corporate Document System
+# Corporate Document System
 
 A microservices-based document management system with JWT authentication and role-based access control.
 
