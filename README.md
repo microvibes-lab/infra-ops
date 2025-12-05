@@ -68,117 +68,6 @@ Default credentials (from `.env`):
 
 To customize, edit the `USERS` variable in `auth-service/.env`.
 
-### Authentication Flow
-
-1. User submits credentials via the login form
-2. Frontend sends `POST /auth/login` with `{ username, password }`
-3. Auth-service validates credentials against user database (in-memory)
-4. On success, auth-service returns a signed JWT token containing:
-   - `username`
-   - `role`
-   - `name`
-   - `exp` (expiration - 1 hour)
-5. Frontend stores the token in `localStorage`
-6. Subsequent API requests include the token in `Authorization: Bearer <token>` header
-
-### JWT Structure
-
-```json
-{
-  "username": "admin",
-  "role": "sys_admin",
-  "name": "System Administrator",
-  "iat": 1699999999,
-  "exp": 1700003599
-}
-```
-
-## API Endpoints
-
-### Auth Service (`/auth/*`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/auth/login` | No | Authenticate and receive JWT token |
-| GET | `/auth/verify` | Yes | Verify token validity |
-| GET | `/auth/health` | No | Service health check |
-
-### Document API (`/api/*`)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/documents` | Yes | Get documents (filtered by role) |
-| GET | `/api/documents/public` | No | Get public documents only |
-| GET | `/api/health` | No | Service health check |
-
-## Request Flow Examples
-
-### 1. Login Request
-
-```
-Browser                    Gateway                   Auth-Service
-   │                          │                           │
-   │ POST /auth/login         │                           │
-   │ {username, password}     │                           │
-   │─────────────────────────>│                           │
-   │                          │ POST /login               │
-   │                          │ {username, password}      │
-   │                          │──────────────────────────>│
-   │                          │                           │ Validate credentials
-   │                          │                           │ Generate JWT
-   │                          │         {token, user}     │
-   │                          │<──────────────────────────│
-   │      {token, user}       │                           │
-   │<─────────────────────────│                           │
-   │                          │                           │
-   │ Store token in           │                           │
-   │ localStorage             │                           │
-```
-
-### 2. Fetch Documents (Authenticated)
-
-```
-Browser                    Gateway                   Doc-API
-   │                          │                           │
-   │ GET /api/documents       │                           │
-   │ Authorization: Bearer X  │                           │
-   │─────────────────────────>│                           │
-   │                          │ GET /documents            │
-   │                          │ Authorization: Bearer X   │
-   │                          │──────────────────────────>│
-   │                          │                           │ Decode JWT
-   │                          │                           │ Extract role
-   │                          │                           │ Filter documents
-   │                          │        [documents]        │
-   │                          │<──────────────────────────│
-   │       [documents]        │                           │
-   │<─────────────────────────│                           │
-```
-
-### 3. Access Public Documents (No Auth)
-
-```
-Browser                    Gateway                   Doc-API
-   │                          │                           │
-   │ GET /api/documents/public│                           │
-   │─────────────────────────>│                           │
-   │                          │ GET /documents/public     │
-   │                          │──────────────────────────>│
-   │                          │                           │ Return public docs
-   │                          │     [public documents]    │
-   │                          │<──────────────────────────│
-   │    [public documents]    │                           │
-   │<─────────────────────────│                           │
-```
-
-## Role-Based Access Control
-
-| Role | Public Documents | Restricted Documents |
-|------|------------------|---------------------|
-| sys_admin | ✅ | ✅ |
-| staff | ✅ | ❌ |
-| unauthenticated | ✅ (via /public) | ❌ |
-
 ## Configuration
 
 ### Environment Variables
@@ -228,14 +117,6 @@ Each document object must have:
 - `content` - Document content
 - `access` - Either `public` (visible to all) or `restricted` (sys_admin only)
 
-### Gateway Routing (nginx.conf)
-
-```nginx
-location /auth/  → http://auth-service:3001/
-location /api/   → http://doc-api:8000/
-location /       → http://frontend-app:3000/
-```
-
 ## Development
 
 ### Rebuild a specific service
@@ -256,11 +137,3 @@ docker-compose logs -f <service-name>
 ```bash
 docker-compose down
 ```
-
-## Security Notes
-
-- `.env` file contains secrets - never commit it to version control (already in `.gitignore`)
-- Passwords are stored in plaintext in `.env` - use proper hashing (bcrypt) and a database in production
-- CORS is permissively configured - restrict origins in production
-- HTTPS should be enabled in production
-- Generate a strong `JWT_SECRET` for production (e.g., `openssl rand -base64 32`)
