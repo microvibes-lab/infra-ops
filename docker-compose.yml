@@ -14,6 +14,7 @@ services:
       context: ../doc-api
     ports:
       - "8000:8000"
+      - "8001:8000"  # Debug port for direct API access
     env_file:
       - ../doc-api/.env
 
